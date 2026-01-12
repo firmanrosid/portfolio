@@ -1,0 +1,64 @@
+name: Automation Suite
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+jobs:
+  playwright:
+    name: Playwright (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2]
+        shardTotal: [2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright Browsers
+        run: bunx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: bun run test:playwright -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.shardIndex }}
+          path: tests/playwright/report/
+          retention-days: 30
+
+  wdio:
+    name: WebdriverIO Tests
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # WDIO needs Chrome, which is usually pre-installed on ubuntu-latest,
+      # but we might need to ensure exact version matches or use a service.
+      # For now, relying on standard runner.
+
+      - name: Run WebdriverIO tests
+        run: bun run test:wdio
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wdio-logs
+          path: tests/wdio/logs/
+          retention-days: 30
